@@ -31,11 +31,9 @@ func getRecordByName(domain, name string, diagnostics *diag.Diagnostics) (record
 			err.Error(),
 		)
 		return
-		// return freenom.DomainRecord{}, err
 	}
 
 	foundRecord := false
-	// var record *freenom.DomainRecord
 
 	for _, r := range domainInfo.Records {
 		log.Print("[DEBUG] Record: ", r.Name, r.Type, r.Value, r.Priority, r.TTL)
