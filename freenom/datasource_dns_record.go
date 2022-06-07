@@ -50,6 +50,11 @@ func (c datasourceFreenomDnsRecordType) GetSchema(_ context.Context) (tfsdk.Sche
 				Computed: true,
 				Required: false,
 			},
+			"fqdn": {
+				Type:     types.StringType,
+				Computed: true,
+				Required: false,
+			},
 		},
 	}, nil
 }
@@ -96,6 +101,7 @@ func (r datasourceFreenomDnsRecord) Read(ctx context.Context, req tfsdk.ReadData
 	datasourceRecord.Type = types.String{Value: freenomRecord.Type}
 	datasourceRecord.TTL = types.Int64{Value: int64(freenomRecord.TTL)}
 	datasourceRecord.Priority = types.Int64{Value: int64(freenomRecord.Priority)}
+	datasourceRecord.FQDN = types.String{Value: computeFQDN(datasourceRecord.Domain.Value, datasourceRecord.Name.Value)}
 
 	diags = resp.State.Set(ctx, &datasourceRecord)
 	resp.Diagnostics.Append(diags...)
