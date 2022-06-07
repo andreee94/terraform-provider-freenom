@@ -52,6 +52,11 @@ func (r resourceFreenomDnsRecordType) GetSchema(_ context.Context) (tfsdk.Schema
 				// Computed: false,
 				Required: true,
 			},
+			"fqdn": {
+				Type:     types.StringType,
+				Computed: true,
+				Required: false,
+			},
 		},
 	}, nil
 }
@@ -83,6 +88,8 @@ func (r resourceFreenomDnsRecord) Create(ctx context.Context, req tfsdk.CreateRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	// log.Println("[INFO] Creating record", plan.Name.Value, plan.Value.Value)
 
 	err := freenom.AddRecord(plan.Domain.Value, []freenom.DomainRecord{
 		{
@@ -152,6 +159,7 @@ func (r resourceFreenomDnsRecord) Read(ctx context.Context, req tfsdk.ReadResour
 	state.Value = types.String{Value: record.Value}
 	state.Priority = types.Int64{Value: int64(record.Priority)}
 	state.TTL = types.Int64{Value: int64(record.TTL)}
+	state.FQDN = types.String{Value: computeFQDN(domain, name)}
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -270,6 +278,8 @@ func (r resourceFreenomDnsRecord) Delete(ctx context.Context, req tfsdk.DeleteRe
 		)
 		return
 	}
+
+	resp.State.RemoveResource(ctx)
 }
 
 // Import resource
