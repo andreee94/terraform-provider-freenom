@@ -3,6 +3,7 @@ package freenom
 import (
 	"context"
 	"os"
+	"sync"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
@@ -18,7 +19,11 @@ func New() tfsdk.Provider {
 }
 
 type provider struct {
-	configured bool
+	configured      bool
+	maxParallel     int
+	currentParallel int
+	mutex           *sync.Mutex
+	cond            *sync.Cond
 }
 
 // GetSchema
@@ -132,6 +137,8 @@ func (p *provider) GetResources(_ context.Context) (map[string]tfsdk.ResourceTyp
 // GetDataSources - Defines provider data sources
 func (p *provider) GetDataSources(_ context.Context) (map[string]tfsdk.DataSourceType, diag.Diagnostics) {
 	return map[string]tfsdk.DataSourceType{
-		"freenom_dns_record": datasourceFreenomDnsRecordType{},
+		"freenom_dns_record":          datasourceFreenomDnsRecordType{},
+		"freenom_dns_records":         datasourceFreenomDnsRecordsType{},
+		"freenom_reverse_dns_records": datasourceFreenomReverseDnsRecordsType{},
 	}, nil
 }
