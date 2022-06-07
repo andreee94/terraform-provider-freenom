@@ -20,3 +20,4 @@ examples/terraform.tfstate.backup
 examples/.terraform/
 key.priv
 key.pub
+terraform-provider-freenom
