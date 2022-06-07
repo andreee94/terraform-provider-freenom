@@ -146,7 +146,7 @@ func (r resourceFreenomDnsRecord) Read(ctx context.Context, req tfsdk.ReadResour
 		return
 	}
 
-	log.Println("[INFO] Reading record", state.ID.Value, domain, name)
+	log.Println("[INFO] Reading record ", state.ID.Value, domain, name)
 
 	record, err := getRecordByName(domain, name, &resp.Diagnostics)
 
@@ -262,7 +262,7 @@ func (r resourceFreenomDnsRecord) Delete(ctx context.Context, req tfsdk.DeleteRe
 		return
 	}
 
-	log.Println("[INFO] Reading record", state.ID.Value, domain, name)
+	log.Println("[INFO] Reading record ", state.ID.Value, domain, name)
 
 	record, err := getRecordByName(domain, name, &resp.Diagnostics)
 

@@ -52,7 +52,7 @@ func getRecordByName(domain, name string, diagnostics *diag.Diagnostics) (record
 	if !foundRecord {
 		diagnostics.AddError(
 			"Record not found",
-			"Record not found"+computeID(domain, name))
+			"Record not found "+computeID(domain, name))
 		err = fmt.Errorf("Record not found")
 		return
 	}
