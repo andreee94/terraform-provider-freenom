@@ -12,4 +12,5 @@ type FreenomDnsRecord struct {
 	Value    types.String `tfsdk:"value"`
 	Priority types.Int64  `tfsdk:"priority"`
 	TTL      types.Int64  `tfsdk:"ttl"`
+	FQDN     types.String `tfsdk:"fqdn"`
 }
