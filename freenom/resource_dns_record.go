@@ -110,6 +110,7 @@ func (r resourceFreenomDnsRecord) Create(ctx context.Context, req tfsdk.CreateRe
 	}
 
 	plan.ID = types.String{Value: computeID(plan.Domain.Value, plan.Name.Value)}
+	plan.FQDN = types.String{Value: computeFQDN(plan.Domain.Value, plan.Name.Value)}
 
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
