@@ -9,13 +9,15 @@ An example of how to:
 - setup the provider
 - get data from the subdomain
 - create a resource
+- get all the subdomains
+- get all the subdomains with a specific value (Ex. ip address)
 
-```
+```hcl
 terraform {
   required_providers {
     freenom = {
         source = "andreee94/freenom"
-        version = "~> 0.0.1"
+        version = "~> 0.1.0"
     }
   }
 }
@@ -39,11 +41,30 @@ resource "freenom_dns_record" "test" {
   ttl = 3600
   priority = 0
 }
+
+// get all the subdomains of example.com and export them as an output
+data "freenom_dns_records" "example"{
+  domain = "example.com"
+}
+
+output "example" {
+    value = data.freenom_dns_records.example
+}
+
+// get all the subdomains of example.com with 192.168.100.100 as value and export them as an output
+data "freenom_reverse_dns_records" "example"{
+  domain = "example.com"
+  value = "192.168.100.100"
+}
+
+output "example_reverse" {
+    value = data.freenom_reverse_dns_records.example
+}
 ```
 
 # NOTES
 
-When creating more than one dns record, the creation may not succeed for every one. 
+When creating more than one dns record, the creation may not succeed for every one due to race conditions of the freenom website. 
 
 The suggestion is to run `terraform` command with `-parallelism=1` to avoid this issue.
 
