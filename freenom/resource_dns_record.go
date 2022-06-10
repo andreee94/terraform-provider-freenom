@@ -3,7 +3,9 @@ package freenom
 import (
 	"context"
 	"log"
+	"regexp"
 	"strings"
+	"terraform-provider-frenom/freenom/validators"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
@@ -19,43 +21,60 @@ func (r resourceFreenomDnsRecordType) GetSchema(_ context.Context) (tfsdk.Schema
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
 			"id": {
-				Type:     types.StringType,
-				Computed: true,
+				Type:        types.StringType,
+				Computed:    true,
+				Description: "Unique identifier for this resource (<name>/<domain>)",
 			},
 			"domain": {
 				Type: types.StringType,
 				// Computed: false,
-				Required: true,
+				Required:    true,
+				Description: "The domain name of the record",
+				Validators: []tfsdk.AttributeValidator{
+					validators.StringRegex{Regex: regexp.MustCompile(`^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
+				},
 			},
 			"type": {
 				Type: types.StringType,
 				// Computed: false,
-				Required: true,
+				Required:    true,
+				Description: "The DNS type of the record",
+				Validators: []tfsdk.AttributeValidator{
+					validators.StringIn{ValidValues: []string{"A", "AAAA", "CNAME", "LOC", "MX", "NAPTR", "RP", "TXT"}, IgnoreCase: false},
+				},
 			},
 			"name": {
 				Type: types.StringType,
 				// Computed: false,
-				Required: true,
+				Required:    true,
+				Description: "The name of the record (Subdomain)",
 			},
 			"value": {
 				Type: types.StringType,
 				// Computed: false,
-				Required: true,
+				Required:    true,
+				Description: "The value of the record (Ex. Ip Address)",
 			},
 			"priority": {
 				Type: types.Int64Type,
 				// Computed: false,
-				Required: true,
+				Required:    true,
+				Description: "The priority of the record",
 			},
 			"ttl": {
 				Type: types.Int64Type,
 				// Computed: false,
-				Required: true,
+				Required:    true,
+				Description: "The TTL of the record",
+				Validators: []tfsdk.AttributeValidator{
+					validators.IntGreaterThan(1),
+				},
 			},
 			"fqdn": {
-				Type:     types.StringType,
-				Computed: true,
-				Required: false,
+				Type:        types.StringType,
+				Computed:    true,
+				Required:    false,
+				Description: "The fully qualified domain name of the record (<name>.<domain>)",
 			},
 		},
 	}, nil

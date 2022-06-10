@@ -3,6 +3,8 @@ package freenom
 import (
 	"context"
 	"log"
+	"regexp"
+	"terraform-provider-frenom/freenom/validators"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
@@ -16,57 +18,70 @@ func (c datasourceFreenomReverseDnsRecordsType) GetSchema(_ context.Context) (tf
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
 			"domain": {
-				Type:     types.StringType,
-				Computed: false,
-				Required: true,
+				Type:        types.StringType,
+				Computed:    false,
+				Required:    true,
+				Description: "The domain name of the record",
+				Validators: []tfsdk.AttributeValidator{
+					validators.StringRegex{Regex: regexp.MustCompile(`^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
+				},
 			},
 			"value": {
-				Type:     types.StringType,
-				Computed: false,
-				Required: true,
+				Type:        types.StringType,
+				Computed:    false,
+				Required:    true,
+				Description: "The value of the record",
 			},
 			"records": {
 				Computed: true,
 				Attributes: tfsdk.ListNestedAttributes(map[string]tfsdk.Attribute{
 					"id": {
-						Type:     types.StringType,
-						Computed: true,
-						Required: false,
+						Type:        types.StringType,
+						Computed:    true,
+						Required:    false,
+						Description: "Unique identifier for this resource (<name>/<domain>)",
 					},
 					"domain": {
-						Type:     types.StringType,
-						Computed: true,
-						Required: false,
+						Type:        types.StringType,
+						Computed:    true,
+						Required:    false,
+						Description: "The domain name of the record",
 					},
 					"type": {
-						Type:     types.StringType,
-						Computed: true,
-						Required: false,
+						Type:        types.StringType,
+						Computed:    true,
+						Required:    false,
+						Description: "The DNS type of the record",
 					},
 					"name": {
-						Type:     types.StringType,
-						Computed: true,
-						Required: false,
+						Type:        types.StringType,
+						Computed:    true,
+						Required:    false,
+						Description: "The name of the record (Subdomain)",
 					},
 					"value": {
-						Type:     types.StringType,
-						Computed: true,
-						Required: false,
+						Type:        types.StringType,
+						Computed:    true,
+						Required:    false,
+						Description: "The value of the record (Ex. Ip Address)",
 					},
 					"priority": {
-						Type:     types.Int64Type,
-						Computed: true,
-						Required: false,
+						Type:        types.Int64Type,
+						Computed:    true,
+						Required:    false,
+						Description: "The priority of the record",
 					},
 					"ttl": {
-						Type:     types.Int64Type,
-						Computed: true,
-						Required: false,
+						Type:        types.Int64Type,
+						Computed:    true,
+						Required:    false,
+						Description: "The TTL of the record",
 					},
 					"fqdn": {
-						Type:     types.StringType,
-						Computed: true,
-						Required: false,
+						Type:        types.StringType,
+						Computed:    true,
+						Required:    false,
+						Description: "The fully qualified domain name of the record (<name>.<domain>)",
 					},
 				}, tfsdk.ListNestedAttributesOptions{}),
 			},

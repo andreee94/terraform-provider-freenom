@@ -17,7 +17,7 @@ terraform {
   required_providers {
     freenom = {
         source = "andreee94/freenom"
-        version = "~> 0.1.0"
+        version = "~> 0.2.1"
     }
   }
 }
@@ -69,6 +69,10 @@ When creating more than one dns record, the creation may not succeed for every o
 The suggestion is to run `terraform` command with `-parallelism=1` to avoid this issue.
 
 For example:
+
+```bash
+terraform plan -parallelism=1
+```
 
 ```bash
 terraform apply -parallelism=1

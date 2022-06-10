@@ -1,9 +1,12 @@
 TEST?=$$(go list ./... | grep -v 'vendor')
-HOSTNAME=local
-NAMESPACE=tr
+# HOSTNAME=local
+# NAMESPACE=tr
+# NAME=freenom
+HOSTNAME=registry.terraform.io
+NAMESPACE=andreee94
 NAME=freenom
 BINARY=terraform-provider-${NAME}
-VERSION=0.1.0
+VERSION=0.2.1
 OS_ARCH=linux_amd64
 
 default: install

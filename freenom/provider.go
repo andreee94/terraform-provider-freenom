@@ -3,7 +3,6 @@ package freenom
 import (
 	"context"
 	"os"
-	"sync"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
@@ -14,16 +13,17 @@ import (
 
 var stderr = os.Stderr
 
-func New() tfsdk.Provider {
-	return &provider{}
+func New(version string) func() tfsdk.Provider {
+	return func() tfsdk.Provider {
+		return &provider{
+			version: version,
+		}
+	}
 }
 
 type provider struct {
-	configured      bool
-	maxParallel     int
-	currentParallel int
-	mutex           *sync.Mutex
-	cond            *sync.Cond
+	configured bool
+	version    string
 }
 
 // GetSchema
@@ -32,14 +32,16 @@ func (p *provider) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diagnostics)
 		Attributes: map[string]tfsdk.Attribute{
 			"username": {
 				Type:     types.StringType,
-				Optional: true,
+				Optional: false,
 				Computed: true,
+				Required: true,
 			},
 			"password": {
 				Type:      types.StringType,
-				Optional:  true,
+				Optional:  false,
 				Computed:  true,
 				Sensitive: true,
+				Required:  true,
 			},
 		},
 	}, nil
@@ -61,14 +63,10 @@ func (p *provider) Configure(ctx context.Context, req tfsdk.ConfigureProviderReq
 		return
 	}
 
-	// User must provide a user to the provider
 	var username string
-	if config.Username.Unknown {
-		// Cannot connect to client with an unknown value
-		resp.Diagnostics.AddWarning(
-			"Unable to create client",
-			"Cannot use unknown value as username",
-		)
+	var password string
+
+	if !checkForUnknowsInConfig(&config, resp) {
 		return
 	}
 
@@ -78,6 +76,12 @@ func (p *provider) Configure(ctx context.Context, req tfsdk.ConfigureProviderReq
 		username = config.Username.Value
 	}
 
+	if config.Password.Null {
+		password = os.Getenv("FREENOM_PASSWORD")
+	} else {
+		password = config.Password.Value
+	}
+
 	if username == "" {
 		// Error vs warning - empty value must stop execution
 		resp.Diagnostics.AddError(
@@ -85,23 +89,6 @@ func (p *provider) Configure(ctx context.Context, req tfsdk.ConfigureProviderReq
 			"Username cannot be an empty string",
 		)
 		return
-	}
-
-	// User must provide a password to the provider
-	var password string
-	if config.Password.Unknown {
-		// Cannot connect to client with an unknown value
-		resp.Diagnostics.AddError(
-			"Unable to create client",
-			"Cannot use unknown value as password",
-		)
-		return
-	}
-
-	if config.Password.Null {
-		password = os.Getenv("FREENOM_PASSWORD")
-	} else {
-		password = config.Password.Value
 	}
 
 	if password == "" {
@@ -125,6 +112,25 @@ func (p *provider) Configure(ctx context.Context, req tfsdk.ConfigureProviderReq
 	}
 
 	p.configured = true
+}
+
+func checkForUnknowsInConfig(config *providerData, resp *tfsdk.ConfigureProviderResponse) bool {
+	if config.Username.Unknown {
+		resp.Diagnostics.AddWarning(
+			"Unable to create client",
+			"Cannot use unknown value as username",
+		)
+		return false
+	}
+
+	if config.Password.Unknown {
+		resp.Diagnostics.AddWarning(
+			"Unable to create client",
+			"Cannot use unknown value as password",
+		)
+		return false
+	}
+	return true
 }
 
 // GetResources - Defines provider resources

@@ -3,6 +3,8 @@ package freenom
 import (
 	"context"
 	"log"
+	"regexp"
+	"terraform-provider-frenom/freenom/validators"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
@@ -12,48 +14,58 @@ import (
 
 type datasourceFreenomDnsRecordType struct{}
 
-func (c datasourceFreenomDnsRecordType) GetSchema(_ context.Context) (tfsdk.Schema,
-	diag.Diagnostics) {
+func (c datasourceFreenomDnsRecordType) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
 			"id": {
-				Type:     types.StringType,
-				Computed: true,
+				Type:        types.StringType,
+				Computed:    true,
+				Description: "Unique identifier for this resource (<name>/<domain>)",
 			},
 			"domain": {
 				Type: types.StringType,
 				// Computed: false,
-				Required: true,
+				Required:    true,
+				Description: "The domain name of the record",
+				Validators: []tfsdk.AttributeValidator{
+					validators.StringRegex{Regex: regexp.MustCompile(`^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
+				},
 			},
 			"type": {
-				Type:     types.StringType,
-				Computed: true,
-				Required: false,
+				Type:        types.StringType,
+				Computed:    true,
+				Required:    false,
+				Description: "The DNS type of the record",
 			},
 			"name": {
 				Type: types.StringType,
 				// Computed: false,
-				Required: true,
+				Required:    true,
+				Description: "The name of the record (Subdomain)",
 			},
 			"value": {
-				Type:     types.StringType,
-				Computed: true,
-				Required: false,
+				Type:        types.StringType,
+				Computed:    true,
+				Required:    false,
+				Description: "The value of the record (Ex. Ip Address)",
 			},
 			"priority": {
-				Type:     types.Int64Type,
-				Computed: true,
-				Required: false,
+				Type:        types.Int64Type,
+				Computed:    true,
+				Required:    false,
+				Description: "The priority of the record",
 			},
 			"ttl": {
-				Type:     types.Int64Type,
-				Computed: true,
-				Required: false,
+				Type:        types.Int64Type,
+				Computed:    true,
+				Required:    false,
+				Description: "The TTL of the record",
 			},
 			"fqdn": {
-				Type:     types.StringType,
-				Computed: true,
-				Required: false,
+				Type:        types.StringType,
+				Computed:    true,
+				Required:    false,
+				Description: "The fully qualified domain name of the record (<name>.<domain>)",
 			},
 		},
 	}, nil
