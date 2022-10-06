@@ -17,7 +17,7 @@ terraform {
   required_providers {
     freenom = {
         source = "andreee94/freenom"
-        version = "~> 0.2.1"
+        version = "~> 0.3.0"
     }
   }
 }
@@ -84,3 +84,12 @@ terraform destroy -parallelism=1
 
 Unfortunately it is not possible to set the `parallelism` flag at resource or provider level yet ([Terraform Issue](https://github.com/hashicorp/terraform/issues/14258)). 
 
+## Acceptance Test
+
+The acceptance test run directly against the real [freenom](www.freenom.com) website.
+
+Run the command:
+
+```bash
+FREENOM_USERNAME=<username> FREENOM_PASSWORD=<password> make testacc
+```

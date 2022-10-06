@@ -42,7 +42,7 @@ func getRecordByName(domain, name string, diagnostics *diag.Diagnostics) (record
 	for _, r := range domainInfo.Records {
 		log.Print("[DEBUG] Record: ", r.Name, r.Type, r.Value, r.Priority, r.TTL)
 
-		if strings.ToLower(r.Name) == strings.ToLower(name) {
+		if strings.EqualFold(r.Name, name) {
 			foundRecord = true
 			record = r
 			break
@@ -52,8 +52,9 @@ func getRecordByName(domain, name string, diagnostics *diag.Diagnostics) (record
 	if !foundRecord {
 		diagnostics.AddError(
 			"Record not found",
-			"Record not found "+computeID(domain, name))
-		err = fmt.Errorf("Record not found")
+			"Record not found "+computeID(domain, name),
+		)
+		err = fmt.Errorf("record not found")
 		return
 	}
 	return

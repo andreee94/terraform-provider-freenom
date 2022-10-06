@@ -2,19 +2,62 @@ package freenom
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"regexp"
 	"terraform-provider-frenom/freenom/validators"
 
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	gofreenom "github.com/tzwsoho/go-freenom/freenom"
 )
 
-type datasourceFreenomDnsRecordType struct{}
+var _ datasource.DataSource = &dnsRecordDataSource{}
 
-func (c datasourceFreenomDnsRecordType) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diagnostics) {
+type dnsRecordDataSource struct {
+	provider *freenomProvider
+}
+
+func NewDnsRecordDataSource() datasource.DataSource {
+	return &dnsRecordDataSource{}
+}
+
+func (d *dnsRecordDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_dns_record"
+}
+
+func (r *dnsRecordDataSource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	// Prevent panic if the provider has not been configured.
+	if req.ProviderData == nil {
+		return
+	}
+
+	provider, ok := req.ProviderData.(*freenomProvider)
+
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *freenomProvider, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+
+		return
+	}
+
+	if !provider.configured {
+		resp.Diagnostics.AddError(
+			"Provider not configured",
+			"Expected a configured provider but it wasn't. Please report this issue to the provider developers.",
+		)
+
+		return
+	}
+
+	r.provider = provider
+}
+
+func (r *dnsRecordDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
 			"id": {
@@ -28,7 +71,7 @@ func (c datasourceFreenomDnsRecordType) GetSchema(_ context.Context) (tfsdk.Sche
 				Required:    true,
 				Description: "The domain name of the record",
 				Validators: []tfsdk.AttributeValidator{
-					validators.StringRegex{Regex: regexp.MustCompile(`^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
+					validators.IsDomain(),
 				},
 			},
 			"type": {
@@ -71,19 +114,8 @@ func (c datasourceFreenomDnsRecordType) GetSchema(_ context.Context) (tfsdk.Sche
 	}, nil
 }
 
-func (c datasourceFreenomDnsRecordType) NewDataSource(_ context.Context,
-	p tfsdk.Provider) (tfsdk.DataSource, diag.Diagnostics) {
-	return datasourceFreenomDnsRecord{
-		p: *(p.(*provider)),
-	}, nil
-}
-
-type datasourceFreenomDnsRecord struct {
-	p provider
-}
-
-func (r datasourceFreenomDnsRecord) Read(ctx context.Context, req tfsdk.ReadDataSourceRequest, resp *tfsdk.ReadDataSourceResponse) {
-	if !r.p.configured {
+func (d *dnsRecordDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	if !d.provider.configured {
 		resp.Diagnostics.AddError(
 			"Provider not configured",
 			"The provider hasn't been configured before apply, likely because it depends on an unknown value from another resource. This leads to weird stuff happening, so we'd prefer if you didn't do that. Thanks!",

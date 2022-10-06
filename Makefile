@@ -6,8 +6,9 @@ HOSTNAME=registry.terraform.io
 NAMESPACE=andreee94
 NAME=freenom
 BINARY=terraform-provider-${NAME}
-VERSION=0.2.1
+VERSION=0.3.0
 OS_ARCH=linux_amd64
+GOBIN=~/go/bin
 
 default: install
 
@@ -32,9 +33,16 @@ install: build
 	mkdir -p ~/.terraform.d/plugins/${HOSTNAME}/${NAMESPACE}/${NAME}/${VERSION}/${OS_ARCH}
 	mv ${BINARY} ~/.terraform.d/plugins/${HOSTNAME}/${NAMESPACE}/${NAME}/${VERSION}/${OS_ARCH}
 
+install-tfplugindocs:
+	go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
+	go get github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
+
+gen-doc: install-tfplugindocs
+	$(GOBIN)/tfplugindocs generate
+
 test:
 	go test -i $(TEST) || exit 1
 	echo $(TEST) | xargs -t -n4 go test $(TESTARGS) -timeout=30s -parallel=4
 
 testacc:
-	TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 120m
+	TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 5m

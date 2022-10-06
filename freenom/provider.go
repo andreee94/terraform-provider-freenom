@@ -4,44 +4,52 @@ import (
 	"context"
 	"os"
 
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/provider"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/tzwsoho/go-freenom/freenom"
 )
 
-var stderr = os.Stderr
+// var stderr = os.Stderr
 
-func New(version string) func() tfsdk.Provider {
-	return func() tfsdk.Provider {
-		return &provider{
+func New(version string) func() provider.Provider {
+	return func() provider.Provider {
+		return &freenomProvider{
 			version: version,
 		}
 	}
 }
 
-type provider struct {
+type freenomProvider struct {
 	configured bool
 	version    string
 }
 
+func (p *freenomProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "freenom"
+	resp.Version = p.version
+}
+
 // GetSchema
-func (p *provider) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diagnostics) {
+func (p *freenomProvider) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
 			"username": {
 				Type:     types.StringType,
-				Optional: false,
-				Computed: true,
-				Required: true,
+				Optional: true,
+				Required: false,
+				Computed: false,
 			},
 			"password": {
 				Type:      types.StringType,
-				Optional:  false,
-				Computed:  true,
+				Optional:  true,
+				Required:  false,
+				Computed:  false,
 				Sensitive: true,
-				Required:  true,
 			},
 		},
 	}, nil
@@ -54,7 +62,7 @@ type providerData struct {
 	Password types.String `tfsdk:"password"`
 }
 
-func (p *provider) Configure(ctx context.Context, req tfsdk.ConfigureProviderRequest, resp *tfsdk.ConfigureProviderResponse) {
+func (p *freenomProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
 	// Retrieve provider data from configuration
 	var config providerData
 	diags := req.Config.Get(ctx, &config)
@@ -112,9 +120,13 @@ func (p *provider) Configure(ctx context.Context, req tfsdk.ConfigureProviderReq
 	}
 
 	p.configured = true
+
+	resp.DataSourceData = p
+	resp.ResourceData = p
 }
 
-func checkForUnknowsInConfig(config *providerData, resp *tfsdk.ConfigureProviderResponse) bool {
+func checkForUnknowsInConfig(config *providerData, resp *provider.ConfigureResponse) bool {
+
 	if config.Username.Unknown {
 		resp.Diagnostics.AddWarning(
 			"Unable to create client",
@@ -133,18 +145,16 @@ func checkForUnknowsInConfig(config *providerData, resp *tfsdk.ConfigureProvider
 	return true
 }
 
-// GetResources - Defines provider resources
-func (p *provider) GetResources(_ context.Context) (map[string]tfsdk.ResourceType, diag.Diagnostics) {
-	return map[string]tfsdk.ResourceType{
-		"freenom_dns_record": resourceFreenomDnsRecordType{},
-	}, nil
+func (p *freenomProvider) Resources(ctx context.Context) []func() resource.Resource {
+	return []func() resource.Resource{
+		NewDnsRecordResource,
+	}
 }
 
-// GetDataSources - Defines provider data sources
-func (p *provider) GetDataSources(_ context.Context) (map[string]tfsdk.DataSourceType, diag.Diagnostics) {
-	return map[string]tfsdk.DataSourceType{
-		"freenom_dns_record":          datasourceFreenomDnsRecordType{},
-		"freenom_dns_records":         datasourceFreenomDnsRecordsType{},
-		"freenom_reverse_dns_records": datasourceFreenomReverseDnsRecordsType{},
-	}, nil
+func (p *freenomProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
+	return []func() datasource.DataSource{
+		NewDnsRecordDataSource,
+		NewDnsRecordListDataSource,
+		NewReverseDnsRecordListDataSource,
+	}
 }

@@ -21,3 +21,7 @@ examples/.terraform/
 key.priv
 key.pub
 terraform-provider-freenom
+freenom/test.old
+examples-v0.2.0
+examples-v0.0.1/
+*.old

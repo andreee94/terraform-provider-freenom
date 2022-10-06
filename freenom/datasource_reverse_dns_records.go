@@ -2,19 +2,62 @@ package freenom
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"regexp"
 	"terraform-provider-frenom/freenom/validators"
 
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-type datasourceFreenomReverseDnsRecordsType struct{}
+var _ datasource.DataSource = &reverseDnsRecordListDataSource{}
 
-func (c datasourceFreenomReverseDnsRecordsType) GetSchema(_ context.Context) (tfsdk.Schema,
-	diag.Diagnostics) {
+type reverseDnsRecordListDataSource struct {
+	provider *freenomProvider
+}
+
+func NewReverseDnsRecordListDataSource() datasource.DataSource {
+	return &reverseDnsRecordListDataSource{}
+}
+
+func (d *reverseDnsRecordListDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_reverse_dns_records" // TODO rename to _reverse_dns_record_list
+}
+
+func (r *reverseDnsRecordListDataSource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	// Prevent panic if the provider has not been configured.
+	if req.ProviderData == nil {
+		return
+	}
+
+	provider, ok := req.ProviderData.(*freenomProvider)
+
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *freenomProvider, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+
+		return
+	}
+
+	if !provider.configured {
+		resp.Diagnostics.AddError(
+			"Provider not configured",
+			"Expected a configured provider but it wasn't. Please report this issue to the provider developers.",
+		)
+
+		return
+	}
+
+	r.provider = provider
+}
+
+func (r *reverseDnsRecordListDataSource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
+	// func (c datasourceFreenomReverseDnsRecordsType) GetSchema(_ context.Context) (tfsdk.Schema,
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
 			"domain": {
@@ -23,7 +66,7 @@ func (c datasourceFreenomReverseDnsRecordsType) GetSchema(_ context.Context) (tf
 				Required:    true,
 				Description: "The domain name of the record",
 				Validators: []tfsdk.AttributeValidator{
-					validators.StringRegex{Regex: regexp.MustCompile(`^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
+					validators.IsDomain(),
 				},
 			},
 			"value": {
@@ -83,25 +126,14 @@ func (c datasourceFreenomReverseDnsRecordsType) GetSchema(_ context.Context) (tf
 						Required:    false,
 						Description: "The fully qualified domain name of the record (<name>.<domain>)",
 					},
-				}, tfsdk.ListNestedAttributesOptions{}),
+				}),
 			},
 		},
 	}, nil
 }
 
-func (c datasourceFreenomReverseDnsRecordsType) NewDataSource(_ context.Context,
-	p tfsdk.Provider) (tfsdk.DataSource, diag.Diagnostics) {
-	return datasourceFreenomReverseDnsRecords{
-		p: *(p.(*provider)),
-	}, nil
-}
-
-type datasourceFreenomReverseDnsRecords struct {
-	p provider
-}
-
-func (r datasourceFreenomReverseDnsRecords) Read(ctx context.Context, req tfsdk.ReadDataSourceRequest, resp *tfsdk.ReadDataSourceResponse) {
-	if !r.p.configured {
+func (d *reverseDnsRecordListDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	if !d.provider.configured {
 		resp.Diagnostics.AddError(
 			"Provider not configured",
 			"The provider hasn't been configured before apply, likely because it depends on an unknown value from another resource. This leads to weird stuff happening, so we'd prefer if you didn't do that. Thanks!",

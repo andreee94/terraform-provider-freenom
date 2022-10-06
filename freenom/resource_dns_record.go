@@ -2,36 +2,87 @@ package freenom
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"regexp"
 	"strings"
 	"terraform-provider-frenom/freenom/validators"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-go/tftypes"
 	"github.com/tzwsoho/go-freenom/freenom"
 )
 
-type resourceFreenomDnsRecordType struct{}
+// var _ provider.ResourceType = freenomDnsRecordResourceType{}
+var _ resource.Resource = &dnsRecordResource{}
+var _ resource.ResourceWithImportState = &dnsRecordResource{}
 
-// Order Resource schema
-func (r resourceFreenomDnsRecordType) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diagnostics) {
+type dnsRecordResource struct {
+	provider *freenomProvider
+}
+
+func NewDnsRecordResource() resource.Resource {
+	return &dnsRecordResource{}
+}
+
+func (r *dnsRecordResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_dns_record"
+}
+
+func (r *dnsRecordResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	// Prevent panic if the provider has not been configured.
+	if req.ProviderData == nil {
+		return
+	}
+
+	provider, ok := req.ProviderData.(*freenomProvider)
+
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *freenomProvider, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+
+		return
+	}
+
+	if !provider.configured {
+		resp.Diagnostics.AddError(
+			"Provider not configured",
+			"Expected a configured provider but it wasn't. Please report this issue to the provider developers.",
+		)
+
+		return
+	}
+
+	r.provider = provider
+
+}
+
+func (r *dnsRecordResource) GetSchema(ctx context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Attributes: map[string]tfsdk.Attribute{
 			"id": {
 				Type:        types.StringType,
 				Computed:    true,
 				Description: "Unique identifier for this resource (<name>/<domain>)",
+				PlanModifiers: tfsdk.AttributePlanModifiers{
+					resource.UseStateForUnknown(),
+				},
 			},
 			"domain": {
-				Type: types.StringType,
-				// Computed: false,
+				Type:        types.StringType,
 				Required:    true,
 				Description: "The domain name of the record",
 				Validators: []tfsdk.AttributeValidator{
-					validators.StringRegex{Regex: regexp.MustCompile(`^((([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9]))$`)},
+					validators.IsDomain(),
+				},
+				PlanModifiers: []tfsdk.AttributePlanModifier{
+					resource.RequiresReplace(),
 				},
 			},
 			"type": {
@@ -40,60 +91,63 @@ func (r resourceFreenomDnsRecordType) GetSchema(_ context.Context) (tfsdk.Schema
 				Required:    true,
 				Description: "The DNS type of the record",
 				Validators: []tfsdk.AttributeValidator{
-					validators.StringIn{ValidValues: []string{"A", "AAAA", "CNAME", "LOC", "MX", "NAPTR", "RP", "TXT"}, IgnoreCase: false},
+					stringvalidator.OneOf(
+						"A", "AAAA", "CNAME", "LOC", "MX", "NAPTR", "RP", "TXT",
+					),
+					// validators.StringIn{ValidValues: []string{"A", "AAAA", "CNAME", "LOC", "MX", "NAPTR", "RP", "TXT"}, IgnoreCase: false},
+				},
+				PlanModifiers: []tfsdk.AttributePlanModifier{
+					resource.RequiresReplace(),
 				},
 			},
 			"name": {
-				Type: types.StringType,
-				// Computed: false,
+				Type:        types.StringType,
 				Required:    true,
 				Description: "The name of the record (Subdomain)",
+				PlanModifiers: []tfsdk.AttributePlanModifier{
+					resource.RequiresReplace(),
+				},
 			},
 			"value": {
-				Type: types.StringType,
-				// Computed: false,
+				Type:        types.StringType,
 				Required:    true,
 				Description: "The value of the record (Ex. Ip Address)",
+				PlanModifiers: []tfsdk.AttributePlanModifier{
+					resource.RequiresReplace(),
+				},
 			},
 			"priority": {
-				Type: types.Int64Type,
-				// Computed: false,
+				Type:        types.Int64Type,
 				Required:    true,
 				Description: "The priority of the record",
+				PlanModifiers: []tfsdk.AttributePlanModifier{
+					resource.RequiresReplace(),
+				},
 			},
 			"ttl": {
-				Type: types.Int64Type,
-				// Computed: false,
+				Type:        types.Int64Type,
 				Required:    true,
 				Description: "The TTL of the record",
 				Validators: []tfsdk.AttributeValidator{
-					validators.IntGreaterThan(1),
+					int64validator.AtLeast(1),
+					// validators.IntGreaterThan(1),
+				},
+				PlanModifiers: []tfsdk.AttributePlanModifier{
+					resource.RequiresReplace(),
 				},
 			},
 			"fqdn": {
 				Type:        types.StringType,
 				Computed:    true,
-				Required:    false,
 				Description: "The fully qualified domain name of the record (<name>.<domain>)",
 			},
 		},
 	}, nil
 }
 
-// New resource instance
-func (r resourceFreenomDnsRecordType) NewResource(_ context.Context, p tfsdk.Provider) (tfsdk.Resource, diag.Diagnostics) {
-	return resourceFreenomDnsRecord{
-		p: *(p.(*provider)),
-	}, nil
-}
-
-type resourceFreenomDnsRecord struct {
-	p provider
-}
-
 // Create a new resource
-func (r resourceFreenomDnsRecord) Create(ctx context.Context, req tfsdk.CreateResourceRequest, resp *tfsdk.CreateResourceResponse) {
-	if !r.p.configured {
+func (r *dnsRecordResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	if !r.provider.configured {
 		resp.Diagnostics.AddError(
 			"Provider not configured",
 			"The provider hasn't been configured before apply, likely because it depends on an unknown value from another resource. This leads to weird stuff happening, so we'd prefer if you didn't do that. Thanks!",
@@ -139,8 +193,8 @@ func (r resourceFreenomDnsRecord) Create(ctx context.Context, req tfsdk.CreateRe
 }
 
 // Read resource information
-func (r resourceFreenomDnsRecord) Read(ctx context.Context, req tfsdk.ReadResourceRequest, resp *tfsdk.ReadResourceResponse) {
-	if !r.p.configured {
+func (r *dnsRecordResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	if !r.provider.configured {
 		resp.Diagnostics.AddError(
 			"Provider not configured",
 			"The provider hasn't been configured before apply, likely because it depends on an unknown value from another resource. This leads to weird stuff happening, so we'd prefer if you didn't do that. Thanks!",
@@ -189,8 +243,8 @@ func (r resourceFreenomDnsRecord) Read(ctx context.Context, req tfsdk.ReadResour
 }
 
 // Update resource
-func (r resourceFreenomDnsRecord) Update(ctx context.Context, req tfsdk.UpdateResourceRequest, resp *tfsdk.UpdateResourceResponse) {
-	if !r.p.configured {
+func (r *dnsRecordResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	if !r.provider.configured {
 		resp.Diagnostics.AddError(
 			"Provider not configured",
 			"The provider hasn't been configured before apply, likely because it depends on an unknown value from another resource. This leads to weird stuff happening, so we'd prefer if you didn't do that. Thanks!",
@@ -255,8 +309,8 @@ func (r resourceFreenomDnsRecord) Update(ctx context.Context, req tfsdk.UpdateRe
 }
 
 // Delete resource
-func (r resourceFreenomDnsRecord) Delete(ctx context.Context, req tfsdk.DeleteResourceRequest, resp *tfsdk.DeleteResourceResponse) {
-	if !r.p.configured {
+func (r *dnsRecordResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	if !r.provider.configured {
 		resp.Diagnostics.AddError(
 			"Provider not configured",
 			"The provider hasn't been configured before apply, likely because it depends on an unknown value from another resource. This leads to weird stuff happening, so we'd prefer if you didn't do that. Thanks!",
@@ -303,7 +357,6 @@ func (r resourceFreenomDnsRecord) Delete(ctx context.Context, req tfsdk.DeleteRe
 }
 
 // Import resource
-func (r resourceFreenomDnsRecord) ImportState(ctx context.Context, req tfsdk.ImportResourceStateRequest, resp *tfsdk.ImportResourceStateResponse) {
-	// Save the import identifier in the id attribute
-	tfsdk.ResourceImportStatePassthroughID(ctx, tftypes.NewAttributePath().WithAttributeName("id"), req, resp)
+func (r *dnsRecordResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
